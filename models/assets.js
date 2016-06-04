@@ -52,7 +52,7 @@ var Assets = function () {
     };
     function getAsset(assetId) {
         return _.find(assets, function (asset) {
-            return asset.assetId === assetId;
+            return asset.assetId.toLowerCase() === assetId.toLowerCase();
         });
     }
     return {

@@ -9,6 +9,7 @@
  * @requires twilio
  */
 var Assets = require('../models/assets'),
+    fs = require('fs'),
     Q = require('q'),
     S = require('string'),
     twilio = require('twilio');
