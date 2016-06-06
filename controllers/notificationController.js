@@ -10,7 +10,6 @@
  * @requires Q
  */
 var _ = require('underscore'),
-    fs = require('fs'),
     notificationHeaders = require('../settings/notificationHeaders.json'),
     Notifications = require('../models/notifications');
 
@@ -46,14 +45,16 @@ NotificationController.prototype = function () {
         /**
          * @todo Verify the phone number belongs to a registered user.
          */
-        var assetId = req.params.assetId;
+        var assets = req.body.assets;
         /**
          * @todo Verify the user has permissions to receive notifications for the asset.
          */
-        self.notifications.sendMessage('I\'m supposed to say something about ' +
-            assetId + '. But why don\'t you just ask me?', phoneNumber)
+        var knownAssets = 'The following assets experienced a critical failure last night:\n' +
+            _.map(assets, function (asset) {
+                return asset.assetId;
+            }).join('\n');
+        self.notifications.sendMessage(knownAssets, phoneNumber)
             .then(function (message) {
-                res.cookie('assetId', assetId);
                 res.writeHead(200, {
                     'Content-Type': 'application/json'
                 });

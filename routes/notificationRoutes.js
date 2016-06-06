@@ -12,7 +12,7 @@ var routes = function () {
     /**
      * Routes
      */
-    notificationRouter.route('/assets/:assetId/:phoneNumber')
+    notificationRouter.route('/assets/:phoneNumber')
         .post(function (req, res) {
             notificationController.createNotificationForAssetByPhoneNumber(req, res);
         });
