@@ -58,6 +58,12 @@ NotificationController.prototype = function () {
                     'Content-Type': 'application/json'
                 });
                 res.end();
+            })
+            .fail(function (err) {
+                res.writeHead(500, {
+                    'Content-Type': 'application/json'
+                });
+                res.end();
             });
     };
     return {
