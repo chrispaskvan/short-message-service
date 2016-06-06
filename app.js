@@ -26,6 +26,9 @@ app.use(function (req, res, next) {
 /**
  * Routes
  */
+var notificationRouter = require('./routes/notificationRoutes')();
+app.use('/api/notifications', notificationRouter);
+
 var twilioRouter = require('./routes/twilioRoutes')();
 app.use('/api/twilio', twilioRouter);
 
