@@ -13,7 +13,7 @@ var Assets = function () {
             .then(function (asset) {
                 if (asset) {
                     var template = 'http://www.google.com/maps/preview/@{{latitude}},{{longitude}},{{zoom}}z';
-                    _.extend(asset, { zoom: 17 });
+                    _.extend(asset.currentState, { zoom: 17 });
                     return new S(template).template(asset).s;
                 } else {
                     return undefined;
@@ -23,18 +23,18 @@ var Assets = function () {
     var getAssetHealthScore = function (assetId, callback) {
         return getAsset(assetId, callback)
             .then(function (asset) {
-                return asset ? asset.healthScore : undefined;
+                return asset ? asset.currentState.Overall_Health : undefined;
             });
     };
     var getAssetLastUpdated = function (assetId, callback) {
         return getAsset(assetId, callback)
             .then(function (asset) {
                 if (asset) {
-                    if (asset.lastUpdated.constructor.name === 'String') {
-                        var timeStamp = Date.parse(asset.lastUpdated);
+                    if (asset.currentState.modifiedDate.constructor.name === 'String') {
+                        var timeStamp = Date.parse(asset.currentState.modifiedDate);
                         return isNaN(timeStamp) ? undefined : new Date(timeStamp);
                     } else {
-                        return asset.lastUpdated;
+                        return asset.currentState.modifiedDate;
                     }
                 }
                 return undefined;
@@ -43,13 +43,15 @@ var Assets = function () {
     var getAssetSummary = function (assetId, callback) {
         return getAsset(assetId, callback)
             .then(function (asset) {
-                return asset ? asset.summary : undefined;
+                return asset ?
+                    'http://qa2-emd.uptake.com/asset-management/Locomotives/asset/' + asset.id + '/summary/'
+                    : undefined;
             });
     };
     function getAsset(assetId, callback) {
         var deferred = Q.defer();
-        deferred.resolve(_.find(assets, function (asset) {
-            return asset.assetId.toLowerCase() === assetId.toLowerCase();
+        deferred.resolve(_.find(assets.content, function (asset) {
+            return asset.name.toLowerCase() === assetId.toLowerCase();
         }));
         return deferred.promise.nodeify(callback);
     }

@@ -35,6 +35,7 @@ describe('Get information about a known asset', function () {
         assets.getAssetLastUpdated(assetId)
             .then(function (lastUpdated) {
                 console.log(lastUpdated.constructor.name);
+                console.log(lastUpdated);
                 expect(lastUpdated instanceof Date).to.be.true;
                 done();
             })
@@ -43,10 +44,10 @@ describe('Get information about a known asset', function () {
             });
     });
 
-    it('Should return a date', function (done) {
+    it('Should return a health score', function (done) {
         assets.getAssetHealthScore(assetId)
             .then(function (healthScore) {
-                expect(healthScore).to.not.be.NaN;
+                expect(healthScore).to.not.be.undefined;
                 done();
             })
             .fail(function (err) {
