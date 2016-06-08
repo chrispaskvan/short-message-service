@@ -14,7 +14,7 @@ var Assets = function () {
                 if (asset) {
                     var template = 'http://www.google.com/maps/preview/@{{latitude}},{{longitude}},{{zoom}}z';
                     _.extend(asset.currentState, { zoom: 17 });
-                    return new S(template).template(asset).s;
+                    return new S(template).template(asset.currentState).s;
                 } else {
                     return undefined;
                 }
