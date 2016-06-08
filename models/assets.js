@@ -34,7 +34,16 @@ var Assets = function () {
         var deferred = Q.defer();
         var asset = getAsset(assetId);
         if (asset) {
-            deferred.resolve(asset.lastUpdated);
+            if (asset.lastUpdated.constructor.name === 'String') {
+                var timeStamp = Date.parse(asset.lastUpdated);
+                if (!isNaN(timeStamp)) {
+                    deferred.resolve(new Date(timeStamp));
+                } else {
+                    deferred.resolve();
+                }
+            } else {
+                deferred.resolve(asset.lastUpdated);
+            }
         } else {
             deferred.reject();
         }

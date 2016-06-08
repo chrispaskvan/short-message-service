@@ -1,6 +1,7 @@
 'use strict';
 var env = require('gulp-env'),
     gulp = require('gulp'),
+    gulpMocha = require('gulp-mocha'),
     nodemon = require('gulp-nodemon');
 
 gulp.task('default', function runDefault() {
@@ -16,4 +17,14 @@ gulp.task('default', function runDefault() {
     }).on('restart', function restart() {
         console.log('Restarting ...');
     });
+});
+
+gulp.task('tests', function runTests() {
+    env({ vars: {
+        DOMAIN: 'http://9ffd3553.ngrok.io',
+        PORT: 1111,
+        TWILIO: './settings/twilio.development.json'
+    }});
+    gulp.src('tests/*Tests.js', { read: false })
+        .pipe(gulpMocha({ reporter: 'nyan' }));
 });
