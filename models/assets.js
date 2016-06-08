@@ -9,60 +9,49 @@ var _ = require('underscore'),
 
 var Assets = function () {
     var getAssetLocation = function (assetId, callback) {
-        var deferred = Q.defer();
-        var asset = getAsset(assetId);
-        if (asset) {
-            var template = 'http://www.google.com/maps/preview/@{{latitude}},{{longitude}},{{zoom}}z';
-            _.extend(asset, { zoom: 17 });
-            deferred.resolve(new S(template).template(asset).s);
-        } else {
-            deferred.reject();
-        }
-        return deferred.promise.nodeify(callback);
+        return getAsset(assetId, callback)
+            .then(function (asset) {
+                if (asset) {
+                    var template = 'http://www.google.com/maps/preview/@{{latitude}},{{longitude}},{{zoom}}z';
+                    _.extend(asset, { zoom: 17 });
+                    return new S(template).template(asset).s;
+                } else {
+                    return undefined;
+                }
+            });
     };
     var getAssetHealthScore = function (assetId, callback) {
-        var deferred = Q.defer();
-        var asset = getAsset(assetId);
-        if (asset) {
-            deferred.resolve(asset.healthScore);
-        } else {
-            deferred.reject();
-        }
-        return deferred.promise.nodeify(callback);
+        return getAsset(assetId, callback)
+            .then(function (asset) {
+                return asset ? asset.healthScore : undefined;
+            });
     };
     var getAssetLastUpdated = function (assetId, callback) {
-        var deferred = Q.defer();
-        var asset = getAsset(assetId);
-        if (asset) {
-            if (asset.lastUpdated.constructor.name === 'String') {
-                var timeStamp = Date.parse(asset.lastUpdated);
-                if (!isNaN(timeStamp)) {
-                    deferred.resolve(new Date(timeStamp));
-                } else {
-                    deferred.resolve();
+        return getAsset(assetId, callback)
+            .then(function (asset) {
+                if (asset) {
+                    if (asset.lastUpdated.constructor.name === 'String') {
+                        var timeStamp = Date.parse(asset.lastUpdated);
+                        return isNaN(timeStamp) ? undefined : new Date(timeStamp);
+                    } else {
+                        return asset.lastUpdated;
+                    }
                 }
-            } else {
-                deferred.resolve(asset.lastUpdated);
-            }
-        } else {
-            deferred.reject();
-        }
-        return deferred.promise.nodeify(callback);
+                return undefined;
+            });
     };
     var getAssetSummary = function (assetId, callback) {
-        var deferred = Q.defer();
-        var asset = getAsset(assetId);
-        if (asset) {
-            deferred.resolve(asset.summary);
-        } else {
-            deferred.reject();
-        }
-        return deferred.promise.nodeify(callback);
+        return getAsset(assetId, callback)
+            .then(function (asset) {
+                return asset ? asset.summary : undefined;
+            });
     };
-    function getAsset(assetId) {
-        return _.find(assets, function (asset) {
+    function getAsset(assetId, callback) {
+        var deferred = Q.defer();
+        deferred.resolve(_.find(assets, function (asset) {
             return asset.assetId.toLowerCase() === assetId.toLowerCase();
-        });
+        }));
+        return deferred.promise.nodeify(callback);
     }
     return {
         getAssetLocation: getAssetLocation,
