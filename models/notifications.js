@@ -37,6 +37,7 @@ function Notifications(twilioSettingsFullPath) {
 Notifications.prototype = (function () {
     'use strict';
     /**
+     * Send a SMS message.
      * @param body {string}
      * @param to {string}
      * @param mediaUrl {string}
@@ -44,8 +45,13 @@ Notifications.prototype = (function () {
      */
     var sendMessage = function (body, to, mediaUrl) {
         var deferred = Q.defer();
+        var phoneNumber = cleanPhoneNumber(to);
+        if (!isPhoneNumberValid(phoneNumber)) {
+            deferred.reject("Phone number is invalid.")
+        }
+        phoneNumber = phoneNumber.replace (/^/,'+1');
         var m = {
-            to: to,
+            to: phoneNumber,
             from: this.settings.phoneNumber,
             body: body,
             statusCallback: process.env.DOMAIN + '/api/twilio/destiny/s'
@@ -62,6 +68,25 @@ Notifications.prototype = (function () {
         });
         return deferred.promise;
     };
+    /**
+     * Get the phone number in a 10 digit format.
+     * @param phoneNumber
+     * @returns {string}
+     * @private
+     */
+    function cleanPhoneNumber(phoneNumber) {
+        var cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
+        return cleanedPhoneNumber.length === 11 && cleanedPhoneNumber[0] === "1" ?
+            cleanedPhoneNumber.slice(1) : cleanedPhoneNumber;
+    };
+    /**
+     * Validate the phone number.
+     * @param phoneNumber
+     * @returns {boolean}
+     */
+    function isPhoneNumberValid(phoneNumber) {
+        return phoneNumber.length === 10;
+    }
     return {
         sendMessage: sendMessage
     };

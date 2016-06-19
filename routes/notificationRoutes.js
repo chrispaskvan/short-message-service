@@ -12,9 +12,13 @@ var routes = function () {
     /**
      * Routes
      */
-    notificationRouter.route('/assets/:phoneNumber')
+    notificationRouter.route('/assets/:phoneNumber/failure')
         .post(function (req, res) {
-            notificationController.createNotificationForAssetByPhoneNumber(req, res);
+            notificationController.createFailureNotificationForAssetsByPhoneNumber(req, res);
+        });
+    notificationRouter.route('/assets/:phoneNumber/fence')
+        .post(function (req, res) {
+            notificationController.createFenceNotificationForAssetsByPhoneNumber(req, res);
         });
     return notificationRouter;
 };
