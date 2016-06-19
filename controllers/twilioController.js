@@ -8,7 +8,9 @@
  * @requires S
  * @requires twilio
  */
-var Assets = require('../models/assets'),
+var _ = require('underscore'),
+    administrators = require('../settings/administrators')
+    Assets = require('../models/assets'),
     fs = require('fs'),
     Q = require('q'),
     S = require('string'),
@@ -41,7 +43,24 @@ TwilioController.prototype = (function () {
         more: getAssetSummary
     };
     /**
-     *
+     * Number of requests allowed per phone number.
+     * @type {number}
+     */
+    var limit = 21;
+    /**
+     * Random error response generator.
+     * @returns {string}
+     * @private
+     */
+    var _getRandomResponseForAnError = function () {
+        var responses = ['This isn\'t the asset you are looking for.',
+            'Ahh, hard to see, the Dark Side of an asset is.',
+            'Remember...the Force will be with you, and your asset, always.',
+            'Is it the asset that made the Kessel Run in less than twelve parsecs?'];
+        return responses[Math.floor(Math.random() * responses.length)];
+    };
+    /**
+     * Twilio error handler.
      * @param req
      * @param res
      */
@@ -61,7 +80,7 @@ TwilioController.prototype = (function () {
         res.end(twiml.toString());
     };
     /**
-     *
+     * Twilio incoming request handler.
      * @param req
      * @param res
      */
@@ -71,32 +90,58 @@ TwilioController.prototype = (function () {
         var twiml = new twilio.TwimlResponse();
         if (twilio.validateRequest(this.authToken, header, process.env.DOMAIN + req.originalUrl, req.body)) {
             var counter = parseInt(req.cookies.counter, 10) || 0;
-            counter = counter + 1;
-            res.cookie('counter', counter);
+            var phoneNumber = req.body.From;
+            var isAdministrator = _.contains(administrators, phoneNumber);
+            if (!isAdministrator && counter === limit) {
+                res.cookie('counter', counter += 1);
+                twiml.message('The circle is now complete.');
+                res.writeHead(200, {
+                    'Content-Type': 'text/xml'
+                });
+                res.end(twiml.toString());
+                return;
+            }
+            if (!isAdministrator && counter > limit) {
+                twiml.message('Strike me down, and I will become more powerful than you could possibly imagine.');
+                res.writeHead(200, {
+                    'Content-Type': 'text/xml'
+                });
+                res.end(twiml.toString());
+                return;
+            }
+            res.cookie('counter', counter += 1);
             var assetId = req.cookies.assetId;
             var message = req.body.Body.trim().toLowerCase();
             var func = keywords[message];
             if (!func) {
+                if (message === 'count') {
+                    twiml.message(counter.toString());
+                    res.writeHead(200, {
+                        'Content-Type': 'text/xml'
+                    });
+                    res.end(twiml.toString());
+                    return;
+                }
                 assetId = message;
-                self.assets.getAssetHealthScore(assetId)
-                    .then(function (healthScore) {
-                        return self.assets.getAssetLastUpdated(assetId)
-                            .then(function (lastUpdated) {
-                                var template = '{{assetId}}\'s last recorded health score was {{healthScore}} at {{lastUpdated}}';
-                                twiml.message(new S(template).template({
-                                    assetId: assetId,
-                                    healthScore: healthScore,
-                                    lastUpdated: lastUpdated
-                                }).s);
-                                res.cookie('assetId', assetId);
-                                res.writeHead(200, {
-                                    'Content-Type': 'text/xml'
-                                });
-                                res.end(twiml.toString());
-                            });
+                self.assets.getAssetLastUpdated(assetId)
+                    .then(function (lastUpdated) {
+                        if (lastUpdated) {
+                            var template = '{{assetId}}\'s last checked in at {{lastUpdated}}';
+                            twiml.message(new S(template).template({
+                                assetId: assetId,
+                                lastUpdated: lastUpdated
+                            }).s);
+                            res.cookie('assetId', assetId);
+                        } else {
+                            twiml.message('I couldn\'t find an asset with that name.');
+                        }
+                        res.writeHead(200, {
+                            'Content-Type': 'text/xml'
+                        });
+                        res.end(twiml.toString());
                     })
                     .fail(function (err) {
-                        twiml.message('These aren\'t the droids you are looking for. I mean assets.');
+                        twiml.message(_getRandomResponseForAnError());
                         res.writeHead(200, {
                             'Content-Type': 'text/xml'
                         });
@@ -112,7 +157,7 @@ TwilioController.prototype = (function () {
                         res.end(twiml.toString());
                     })
                     .fail(function (err) {
-                        twiml.message('These aren\'t the droids you are looking for. I mean assets.');
+                        twiml.message(_getRandomResponseForAnError());
                         res.writeHead(200, {
                             'Content-Type': 'text/xml'
                         });
@@ -125,7 +170,7 @@ TwilioController.prototype = (function () {
         }
     };
     /**
-     *
+     * Twilio status callback function for reporting.
      * @param req
      * @param res
      */
@@ -144,21 +189,31 @@ TwilioController.prototype = (function () {
         }
         res.end(twiml.toString());
     };
+    /**
+     * Get the health score for an asset.
+     * @param assetId
+     * @returns {*}
+     */
     function getAssetHealthScore(assetId) {
         if (assetId) {
             return this.assets.getAssetHealthScore(assetId)
                 .then(function (healthScore) {
-                    return healthScore;
+                    return healthScore || 'N/A';
                 })
                 .fail(function (err) {
-                    return 'These aren\'t the droids you are looking for. I mean assets.';
+                    return _getRandomResponseForAnError();
                 })
         } else {
             var deferred = Q.defer();
-            deferred.resolve('Sorry. I\'m not sure to who you are referring.');
+            deferred.resolve('I couldn\'t find that asset.');
             return deferred.promise.nodeify(callback);
         }
     }
+    /**
+     * Get the asset's location.
+     * @param assetId
+     * @returns {*}
+     */
     function getAssetLocation(assetId) {
         if (assetId) {
             return this.assets.getAssetLocation(assetId)
@@ -166,14 +221,19 @@ TwilioController.prototype = (function () {
                     return url;
                 })
                 .fail(function (err) {
-                    return 'These aren\'t the droids you are looking for. I mean assets.';
+                    return _getRandomResponseForAnError();
                 })
         } else {
             var deferred = Q.defer();
-            deferred.resolve('Sorry. I\'m not sure to who you are referring.');
+            deferred.resolve('Sorry, did you lose it?');
             return deferred.promise.nodeify(callback);
         }
     }
+    /**
+     * Get the asset's summary page.
+     * @param assetId
+     * @returns {*}
+     */
     function getAssetSummary(assetId) {
         if (assetId) {
             return this.assets.getAssetSummary(assetId)
@@ -181,11 +241,11 @@ TwilioController.prototype = (function () {
                     return url;
                 })
                 .fail(function (err) {
-                    return 'Let me get back to you.';
+                    return 'Can I get back to you?';
                 })
         } else {
             var deferred = Q.defer();
-            deferred.resolve('Sorry. I\'m not sure to who you are referring.');
+            deferred.resolve('I think that asset is flying under the radar.');
             return deferred.promise.nodeify(callback);
         }
     }

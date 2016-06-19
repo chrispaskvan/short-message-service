@@ -9,7 +9,7 @@ gulp.task('default', function runDefault() {
         script: 'app.js',
         ext: 'js',
         env: {
-            DOMAIN: 'http://9ffd3553.ngrok.io',
+            DOMAIN: 'http://d5aef042.ngrok.io',
             PORT: 1111,
             TWILIO: './settings/twilio.development.json'
         },
@@ -21,7 +21,7 @@ gulp.task('default', function runDefault() {
 
 gulp.task('tests', function runTests() {
     env({ vars: {
-        DOMAIN: 'http://9ffd3553.ngrok.io',
+        DOMAIN: 'http://d5aef042.ngrok.io',
         PORT: 1111,
         TWILIO: './settings/twilio.development.json'
     }});
