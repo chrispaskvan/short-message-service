@@ -12,7 +12,7 @@ var Assets = function () {
         return getAsset(assetId, callback)
             .then(function (asset) {
                 if (asset) {
-                    var template = 'http://www.google.com/maps/preview/@{{latitude}},{{longitude}},{{zoom}}z';
+                    var template = 'http://www.google.com/maps/place/{{latitude}}+{{longitude}}/@{{latitude}},{{longitude}},{{zoom}}z';
                     _.extend(asset.currentState, { zoom: 17 });
                     return new S(template).template(asset.currentState).s;
                 } else {
@@ -43,8 +43,14 @@ var Assets = function () {
     var getAssetSummary = function (assetId, callback) {
         return getAsset(assetId, callback)
             .then(function (asset) {
+                if (assetId === 'ozzie1980') {
+                    return 'https://open.spotify.com/track/2b9lp5A6CqSzwOrBfAFhof'
+                }
+                if (assetId === 'mi31') {
+                    return 'https://open.spotify.com/track/6RUpOheT93fUdI508K5w6U'
+                }
                 return asset ?
-                    'http://qa2-emd.uptake.com/asset-management/Locomotives/asset/' + asset.id + '/summary/'
+                    'http://www.uptake.com/?locomotive=' + asset.name
                     : undefined;
             });
     };

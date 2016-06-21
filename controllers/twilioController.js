@@ -9,8 +9,9 @@
  * @requires twilio
  */
 var _ = require('underscore'),
-    administrators = require('../settings/administrators')
+    administrators = require('../settings/administrators'),
     Assets = require('../models/assets'),
+    bitly = require('../models/bitly')(process.env.BITLY),
     fs = require('fs'),
     Q = require('q'),
     S = require('string'),
@@ -83,6 +84,7 @@ TwilioController.prototype = (function () {
      * Twilio incoming request handler.
      * @param req
      * @param res
+     *
      */
     var request = function (req, res) {
         var self = this;
@@ -111,29 +113,26 @@ TwilioController.prototype = (function () {
             }
             res.cookie('counter', counter += 1);
             var assetId = req.cookies.assetId;
-            var message = req.body.Body.trim().toLowerCase();
-            var func = keywords[message];
-            if (!func) {
-                if (message === 'count') {
-                    twiml.message(counter.toString());
-                    res.writeHead(200, {
-                        'Content-Type': 'text/xml'
-                    });
-                    res.end(twiml.toString());
-                    return;
-                }
-                assetId = message;
-                self.assets.getAssetLastUpdated(assetId)
-                    .then(function (lastUpdated) {
-                        if (lastUpdated) {
-                            var template = '{{assetId}}\'s last checked in at {{lastUpdated}}';
-                            twiml.message(new S(template).template({
-                                assetId: assetId,
-                                lastUpdated: lastUpdated
-                            }).s);
-                            res.cookie('assetId', assetId);
+            var reply = req.body.Body.trim().toLowerCase();
+            if (reply === '?' || reply.slice(0,4) === 'help') {
+                twiml.message('Reply with the name of the asset you are looking for. Once found, reply with HEALTH, WHERE, or MORE to get further detail. Reply STOP to cancel.');
+                res.writeHead(200, {
+                    'Content-Type': 'text/xml'
+                });
+                res.end(twiml.toString());
+                return;
+            }
+            var func = keywords[reply];
+            if (assetId && func) {
+                func.call(this, assetId)
+                    .then(function (message) {
+                        if (assetId === 'mi31' && reply === 'more') {
+                            twiml.message(function () {
+                                this.body(message.substr(0, 130));
+                                this.media('http://sms.apricothill.com/content/bangui-windmills.gif');
+                            });
                         } else {
-                            twiml.message('I couldn\'t find an asset with that name.');
+                            twiml.message(message);
                         }
                         res.writeHead(200, {
                             'Content-Type': 'text/xml'
@@ -146,11 +145,37 @@ TwilioController.prototype = (function () {
                             'Content-Type': 'text/xml'
                         });
                         res.end(twiml.toString());
-                    })
+                    });
             } else {
-                func.call(this, assetId)
-                    .then(function (message) {
-                        twiml.message(message);
+                if (func) {
+                    twiml.message('What asset are you looking for?');
+                    res.writeHead(200, {
+                        'Content-Type': 'text/xml'
+                    });
+                    res.end(twiml.toString());
+                    return;
+                }
+                if (reply === 'count') {
+                    twiml.message(counter.toString());
+                    res.writeHead(200, {
+                        'Content-Type': 'text/xml'
+                    });
+                    res.end(twiml.toString());
+                    return;
+                }
+                assetId = reply;
+                self.assets.getAssetLastUpdated(assetId)
+                    .then(function (lastUpdated) {
+                        if (lastUpdated) {
+                            var template = '{{assetId}}\'s last checked in at {{lastUpdated}}';
+                            twiml.message(new S(template).template({
+                                assetId: assetId,
+                                lastUpdated: lastUpdated
+                            }).s);
+                            res.cookie('assetId', assetId);
+                        } else {
+                            twiml.message('I couldn\'t find an asset with that name.');
+                            res.clearCookie('assetId', { path: '/' });                         }
                         res.writeHead(200, {
                             'Content-Type': 'text/xml'
                         });
@@ -162,7 +187,7 @@ TwilioController.prototype = (function () {
                             'Content-Type': 'text/xml'
                         });
                         res.end(twiml.toString());
-                    });
+                    })
             }
         } else {
             res.writeHead(403);
@@ -238,7 +263,14 @@ TwilioController.prototype = (function () {
         if (assetId) {
             return this.assets.getAssetSummary(assetId)
                 .then(function (url) {
-                    return url;
+                    if (url.indexOf('spotify') === -1) {
+                        return bitly.getShortUrl(url)
+                            .then(function (shortUrl) {
+                                return shortUrl;
+                            });
+                    } else {
+                        return url;
+                    }
                 })
                 .fail(function (err) {
                     return 'Can I get back to you?';
