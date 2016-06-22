@@ -12,6 +12,10 @@ var routes = function () {
     /**
      * Routes
      */
+    notificationRouter.route('/assets/:phoneNumber')
+        .post(function (req, res) {
+            notificationController.createNotificationForAssetsByPhoneNumber(req, res);
+        });
     notificationRouter.route('/assets/:phoneNumber/failure')
         .post(function (req, res) {
             notificationController.createFailureNotificationForAssetsByPhoneNumber(req, res);

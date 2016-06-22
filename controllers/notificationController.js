@@ -11,7 +11,7 @@
  */
 var _ = require('underscore'),
     notificationHeaders = require('../settings/notificationHeaders.json'),
-    Notifications = require('../models/notifications')
+    Notifications = require('../models/notifications'),
     Users = require('../models/users');
 
 /**
@@ -35,47 +35,66 @@ NotificationController.prototype = function () {
      * @param res
      */
     var createFailureNotificationForAssetsByPhoneNumber = function (req, res) {
-        var self = this;
-        if (!areNotificationRequestHeadersValid.call(self, req)) {
-            res.writeHead(403);
-            res.end();
-            return;
-        }
-        var phoneNumber = req.params.phoneNumber;
-        /**
-         * @todo Verify the phone number belongs to a registered user.
-         */
-        var assets = req.body.assets;
-        /**
-         * @todo Verify the user has permissions to receive notifications for the asset.
-         */
-        var knownAssets = 'The following assets recently experienced critical failures:\n' +
-            _.map(assets, function (asset) {
-                return asset.assetId;
-            }).join('\n');
-        self.notifications.sendMessage(knownAssets, phoneNumber)
-            .then(function (message) {
-                res.writeHead(200, {
-                    'Content-Type': 'application/json'
-                });
-                res.end();
-            })
-            .fail(function (err) {
-                res.writeHead(500, {
-                    'Content-Type': 'application/json'
-                });
-                res.end();
-            });
+        _createNotificationForAssetsByPhoneNumber.call(this, 'The following assets recently experienced critical failures:', req, res);
     };
+    /**
+     *
+     * @param req
+     * @param res
+     */
     var createFenceNotificationForAssetsByPhoneNumber = function (req, res) {
+        _createNotificationForAssetsByPhoneNumber.call(this, 'The following assets just entered \'Naperville Rail Yard\':', req, res);
+    };
+    /**
+     * Send a message notifying of the asset(s) recent failure.
+     * @param req
+     * @param res
+     */
+    var createNotificationForAssetsByPhoneNumber = function (req, res) {
+        if (req.body.message) {
+            _createNotificationForAssetsByPhoneNumber.call(this, req.body.message, req, res);
+        } else {
+            res.writeHead(403);
+            res.end();
+        }
+    };
+    /**
+     *
+     * @param req
+     * @returns {boolean}
+     */
+    function areNotificationRequestHeadersValid(req) {
+        return _.compact(_.map(this.keys, function (headerName) {
+            return req.headers[headerName] === notificationHeaders[headerName];
+        })).length === this.keys.length;
+    }
+    /**
+     *
+     * @param phoneNumber
+     * @returns {*}
+     */
+    function cleanPhoneNumber(phoneNumber) {
+        var cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
+        return cleanedPhoneNumber.length === 11 && cleanedPhoneNumber[0] === "1" ?
+            cleanedPhoneNumber.slice(1) : cleanedPhoneNumber;
+    }
+
+    /**
+     *
+     * @param message
+     * @param req
+     * @param res
+     * @private
+     */
+    function _createNotificationForAssetsByPhoneNumber(message, req, res) {
         var self = this;
-        if (!areNotificationRequestHeadersValid.call(this, req)) {
+        var phoneNumber = cleanPhoneNumber(req.params.phoneNumber || '');
+        if (!areNotificationRequestHeadersValid.call(this, req) || !isPhoneNumberValid(phoneNumber)) {
             res.writeHead(403);
             res.end();
             return;
         }
-        var phoneNumber = req.params.phoneNumber;
-        getUser.call(self, cleanPhoneNumber(phoneNumber))
+        getUser.call(self, phoneNumber)
             .then(function (user) {
                 if (!user) {
                     res.writeHead(403);
@@ -90,7 +109,7 @@ NotificationController.prototype = function () {
                         return;
                     }
                 });
-                var knownAssets = 'The following assets just entered \'Naperville Rail Yard\':\n' +
+                var knownAssets = message + '\n' +
                     _.map(assets, function (asset) {
                         return asset.assetId;
                     }).join('\n');
@@ -114,26 +133,6 @@ NotificationController.prototype = function () {
                 });
                 res.end();
             });
-    };
-    /**
-     *
-     * @param req
-     * @returns {boolean}
-     */
-    function areNotificationRequestHeadersValid(req) {
-        return _.compact(_.map(this.keys, function (headerName) {
-            return req.headers[headerName] === notificationHeaders[headerName];
-        })).length === this.keys.length;
-    }
-    /**
-     *
-     * @param phoneNumber
-     * @returns {*}
-     */
-    function cleanPhoneNumber(phoneNumber) {
-        var cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
-        return cleanedPhoneNumber.length === 11 && cleanedPhoneNumber[0] === "1" ?
-            cleanedPhoneNumber.slice(1) : cleanedPhoneNumber;
     }
     /**
      *
@@ -146,6 +145,14 @@ NotificationController.prototype = function () {
             });
     }
     /**
+     * Validate the phone number.
+     * @param phoneNumber
+     * @returns {boolean}
+     */
+    function isPhoneNumberValid(phoneNumber) {
+        return phoneNumber.length === 10;
+    }
+    /**
      * @todo Verify the user has permissions to receive notifications for the asset.
      */
     function isUserPermittedToViewAsset(userId, assetId) {
@@ -153,7 +160,8 @@ NotificationController.prototype = function () {
     }
     return {
         createFailureNotificationForAssetsByPhoneNumber: createFailureNotificationForAssetsByPhoneNumber,
-        createFenceNotificationForAssetsByPhoneNumber: createFenceNotificationForAssetsByPhoneNumber
+        createFenceNotificationForAssetsByPhoneNumber: createFenceNotificationForAssetsByPhoneNumber,
+        createNotificationForAssetsByPhoneNumber: createNotificationForAssetsByPhoneNumber
     };
 }();
 module.exports = NotificationController;
